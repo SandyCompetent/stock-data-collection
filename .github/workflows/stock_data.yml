@@ -24,7 +24,7 @@ jobs:
       - name: Run data fetching script
         env:
           API_KEY_1: ${{ secrets.API_KEY_1 }}
-#          API_KEY_2: ${{ secrets.API_KEY_2 }}
+          API_KEY_2: ${{ secrets.API_KEY_2 }}
 #          API_KEY_3: ${{ secrets.API_KEY_3 }}
 #          API_KEY_4: ${{ secrets.API_KEY_4 }}
 #          API_KEY_5: ${{ secrets.API_KEY_5 }}
