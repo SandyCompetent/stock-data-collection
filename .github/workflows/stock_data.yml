@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-        contents: write
+      contents: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -27,9 +27,11 @@ jobs:
         env:
           API_KEY_1: ${{ secrets.API_KEY_1 }}
           API_KEY_2: ${{ secrets.API_KEY_2 }}
-#          API_KEY_3: ${{ secrets.API_KEY_3 }}
-#          API_KEY_4: ${{ secrets.API_KEY_4 }}
-#          API_KEY_5: ${{ secrets.API_KEY_5 }}
+          API_KEY_3: ${{ secrets.API_KEY_3 }}
+          API_KEY_4: ${{ secrets.API_KEY_4 }}
+          API_KEY_5: ${{ secrets.API_KEY_5 }}
+          API_KEY_6: ${{ secrets.API_KEY_6 }}
+          API_KEY_7: ${{ secrets.API_KEY_7 }}
         run: python fetch_stock_data.py
 
       - name: Commit and push data files
