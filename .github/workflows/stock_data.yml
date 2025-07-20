@@ -1,0 +1,41 @@
+name: Fetch Historical Stock Data
+
+on:
+  # Runs every 5 minutes
+  schedule:
+    - cron: '*/5 * * * *'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: pip install pandas requests
+
+      - name: Run data fetching script
+        env:
+          # Pass the secrets to the script as environment variables
+          API_KEY_1: ${{ secrets.API_KEY_1 }}
+          API_KEY_2: ${{ secrets.API_KEY_2 }}
+          API_KEY_3: ${{ secrets.API_KEY_3 }}
+          API_KEY_4: ${{ secrets.API_KEY_4 }}
+          API_KEY_5: ${{ secrets.API_KEY_5 }}
+          # Add more keys here if you have them
+        run: python fetch_stock_data.py
+
+      - name: Commit and push data files
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Update historical stock data"
+          file_pattern: "**/*.csv state.json" # Commits CSV files and the state file
