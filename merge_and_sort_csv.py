@@ -8,7 +8,7 @@ DATA_FOLDER = 'MRK_stock_data'
 # The name of the final, merged output file.
 OUTPUT_FILE = 'MRK_full_sorted_data.csv'
 # The column to sort by. Alpha Vantage uses 'timestamp' for this API.
-SORT_COLUMN = 'timestamp'
+SORT_COLUMN = 'Date'
 
 
 def merge_and_sort_csvs():
@@ -49,9 +49,26 @@ def merge_and_sort_csvs():
     print("Merging files...")
     merged_df = pd.concat(df_list, ignore_index=True)
 
+    # --- Remove the 'open' column ---
+    if 'open' in merged_df.columns:
+        merged_df.drop(columns=['open'], inplace=True)
+        print("Removed 'open' column.")
+
+    # --- Rename the columns ---
+    rename_map = {
+        'timestamp': 'Date',
+        'high': 'High',
+        'low': 'Low',
+        'close': 'Close',
+        'volume': 'Volume'
+    }
+
+    merged_df.rename(columns=rename_map, inplace=True)
+    print(f"Renamed columns: {rename_map.keys()}")
+
     # --- Sort the data ---
     print(f"Sorting data by '{SORT_COLUMN}'...")
-    # 1. Convert the 'timestamp' column to datetime objects for accurate sorting
+    # 1. Convert the 'Date' column to datetime objects for accurate sorting
     merged_df[SORT_COLUMN] = pd.to_datetime(merged_df[SORT_COLUMN])
 
     # 2. Sort the DataFrame from earliest to latest
