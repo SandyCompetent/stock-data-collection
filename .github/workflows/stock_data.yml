@@ -2,7 +2,7 @@ name: Fetch Historical Stock Data
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/45 * * * *'
   workflow_dispatch:
 
 jobs:
