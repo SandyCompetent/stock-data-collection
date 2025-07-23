@@ -7,9 +7,9 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 
 # --- Configuration ---
-SYMBOL = 'NVDA'
+SYMBOL = 'EBAY'
 INTERVAL = '1min'
-DATA_FOLDER = 'NVDA_stock_data'
+DATA_FOLDER = 'EBAY_stock_data'
 STATE_FILE = 'state.json'
 
 # Set your desired date range
