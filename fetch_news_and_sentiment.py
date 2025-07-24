@@ -21,7 +21,7 @@ DATA_FOLDER = 'NVDA_news_data'
 STATE_FILE = 'news_state.json'
 
 # Set your desired overall date range for the news articles
-START_DATE = date(2022, 1, 1)
+START_DATE = date(2009, 1, 1)
 END_DATE = date.today()
 
 # --- Advanced Configuration ---
