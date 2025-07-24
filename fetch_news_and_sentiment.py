@@ -16,7 +16,7 @@ TICKER = 'NVDA'
 # Example: ['technology', 'earnings']
 TOPICS = []
 # Folder to store the downloaded news data
-DATA_FOLDER = 'EBAY_news_data'
+DATA_FOLDER = 'NVDA_news_data'
 # State file to keep track of download progress
 STATE_FILE = 'news_state.json'
 

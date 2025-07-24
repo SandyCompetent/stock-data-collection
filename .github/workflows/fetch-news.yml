@@ -40,5 +40,5 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "feat: Add historical news and sentiment data"
-          # Commit the new CSVs from the correct folder and the news state file
-          file_pattern: "news_sentiment_data_csv/*.csv news_state.json"
+          # The * is a wildcard that matches any folder name
+          file_pattern: "*_news_data/ news_state.json"
