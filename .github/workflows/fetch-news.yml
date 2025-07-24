@@ -40,5 +40,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "feat: Add historical news and sentiment data"
-          # The * is a wildcard that matches any folder name
-          file_pattern: "*_news_data/ news_state.json"
+          file_pattern: "**/*.csv news_state.json"
