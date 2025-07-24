@@ -51,7 +51,6 @@ def get_api_keys():
 
 
 # --- Main Logic ---
-# --- Main Logic ---
 def fetch_month_data(api_key, month_to_fetch):
     """
     Fetches one month of data using a specific API key.
