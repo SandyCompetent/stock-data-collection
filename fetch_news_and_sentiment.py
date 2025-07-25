@@ -8,36 +8,22 @@ from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 
 # --- Configuration ---
-# The stock/crypto/forex ticker you are interested in.
-# Example: 'NVDA' or 'CRYPTO:BTC'
 TICKER = 'NVDA'
-# Optional: Specify topics to filter by. Leave empty to get all topics.
-# Full list of topics can be found in the Alpha Vantage documentation.
-# Example: ['technology', 'earnings']
-# TOPICS = []
-# Folder to store the downloaded news data
 DATA_FOLDER = 'NVDA_news_data'
-# State file to keep track of download progress
 STATE_FILE = 'news_state.json'
-
-# Set your desired overall date range for the news articles
-START_DATE = date(2009, 1, 1)
+START_DATE = date(2022, 1, 1)
 END_DATE = date.today()
 
 # --- Advanced Configuration ---
-# Number of months to fetch in a single API call.
-# The API can be sensitive to large date ranges, so 3-6 months is a good starting point.
 TIME_CHUNK_MONTHS = 6
-# The API returns a maximum of 1000 results per call.
 API_LIMIT = 1000
-# Base URL for the Alpha Vantage API
 API_BASE_URL = "https://www.alphavantage.co/query"
 
 
 # --- Helper Functions ---
 
 def get_api_keys():
-    """Loads API keys from environment variables (e.g., API_KEY_1, API_KEY_2)."""
+    """Loads API keys from environment variables."""
     keys = []
     i = 1
     while True:
@@ -48,25 +34,21 @@ def get_api_keys():
         else:
             break
     if not keys:
-        raise ValueError("No API keys found in environment variables. Please set API_KEY_1, API_KEY_2, etc.")
-
-    # --- New Log ---
+        raise ValueError("No API keys found. Please set API_KEY_1, API_KEY_2, etc.")
     print(f"[DEBUG] Found {len(keys)} API key(s).")
     return keys
 
 
 def load_state():
-    """Loads the last successfully fetched end date from the state file."""
+    """Loads the last successfully fetched end date."""
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, 'r') as f:
                 state_data = json.load(f)
-                # Return the date from which the next fetch should start
                 return date.fromisoformat(state_data['next_start_date'])
         except (json.JSONDecodeError, KeyError):
-            print("State file is corrupted or invalid. Starting from the beginning.")
+            print("State file is corrupted. Starting from the beginning.")
             return START_DATE
-    # If no state file, start from the configured START_DATE
     return START_DATE
 
 
@@ -81,146 +63,133 @@ def save_state(next_start_date):
 
 def fetch_news_for_period(api_key, time_from, time_to):
     """
-    Fetches news and sentiment data for a specific time period and saves it as a CSV.
-    Returns True on success, False on failure.
+    Fetches news for a specific time period.
+    Returns a status: 'SUCCESS', 'RATE_LIMIT', or 'FAILURE'.
     """
-    # Format dates to YYYYMMDDTHHMM format required by the API
     time_from_str = time_from.strftime('%Y%m%dT%H%M')
     time_to_str = time_to.strftime('%Y%m%dT%H%M')
 
-    print(f"\nAttempting to fetch news from {time_from.strftime('%Y-%m-%d')} to {time_to.strftime('%Y-%m-%d')}")
-
     params = {
-        "function": "NEWS_SENTIMENT",
-        "tickers": TICKER,
-        "time_from": time_from_str,
-        "time_to": time_to_str,
-        "sort": "EARLIEST",  # Fetch oldest first to process chronologically
-        "limit": API_LIMIT,
-        "apikey": api_key,
+        "function": "NEWS_SENTIMENT", "tickers": TICKER, "time_from": time_from_str,
+        "time_to": time_to_str, "sort": "EARLIEST", "limit": API_LIMIT, "apikey": api_key,
     }
-
-    # if TOPICS:
-    #     params["topics"] = ",".join(TOPICS)
-
-    # --- New Log ---
-    print(f"[DEBUG] Request Parameters: {params}")
 
     try:
         response = requests.get(API_BASE_URL, params=params)
-
-        # --- New Logs ---
-        print(f"[DEBUG] Response Status Code: {response.status_code}")
-        # Log the first 500 characters of the raw response to see what we got
-        print(f"[DEBUG] Raw Response Text (first 500 chars): {response.text[:500]}")
-
-        response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
+        print(f"[DEBUG] Status Code: {response.status_code}")
+        response.raise_for_status()
         data = response.json()
 
-        # Case 1: API explicitly says no articles were found. Treat as a success and move on.
-        if "Information" in data and "No articles found" in data.get("Information", ""):
-            print("No articles found for this period. Moving to the next time chunk.")
-            return True
+        # ** NEW: Check for rate limit message **
+        if "Information" in data and "rate limit" in data.get("Information", ""):
+            print(f"❗️ API rate limit reached for this key. Response: {data['Information']}")
+            return 'RATE_LIMIT'
 
-        # Case 2: API returns a genuine error message. This is a failure.
         if "Error Message" in data:
-            print(f"API returned an error: {data}")
-            return False
+            print(f"❌ API returned an error: {data}")
+            return 'FAILURE'
+
+        if "Information" in data and "No articles found" in data.get("Information", ""):
+            print("No articles found for this period. Moving on.")
+            return 'SUCCESS'  # This is a successful outcome
 
         feed = data.get("feed", [])
         if not feed:
-            # Case 3: The 'feed' is empty or missing, but there was no error/info message.
-            # This also means no articles were found.
-            print("No articles found for this period (empty feed). Moving on.")
-            return True
+            print("No articles found (empty feed). Moving on.")
+            return 'SUCCESS'  # Also a successful outcome
 
-        # Create a unique filename for this data chunk
-        ticker_str = TICKER.replace(':', '')  # Sanitize for filename
+        # --- Save data if found ---
+        ticker_str = TICKER.replace(':', '')
         filename = f"{ticker_str}_{time_from_str[:8]}_{time_to_str[:8]}.csv"
         os.makedirs(DATA_FOLDER, exist_ok=True)
         filepath = os.path.join(DATA_FOLDER, filename)
 
-        # --- New Log ---
-        print(f"[DEBUG] Preparing to write {len(feed)} articles to {filepath}...")
-
-        # Flatten and write the data to a CSV file
         with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
-            # The headers will be the keys from the first article object
             fieldnames = feed[0].keys()
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
             writer.writeheader()
             for article in feed:
-                # Create a copy to avoid modifying the original list
                 row = article.copy()
-                # Convert lists of objects/strings to a more CSV-friendly format
                 row['authors'] = ', '.join(row.get('authors', []))
                 row['topics'] = json.dumps(row.get('topics', []))
                 row['ticker_sentiment'] = json.dumps(row.get('ticker_sentiment', []))
                 writer.writerow(row)
 
         print(f"✅ Successfully saved {len(feed)} articles to {filepath}")
-
-        # If we hit the limit, it's likely there's more data in this period.
         if len(feed) == API_LIMIT:
-            print(
-                f"⚠️ Warning: Reached the API limit of {API_LIMIT} articles. Some news within this period may have been missed.")
+            print(f"⚠️ Warning: Reached the API limit of {API_LIMIT} articles.")
 
-        return True
+        return 'SUCCESS'
 
     except requests.exceptions.RequestException as e:
         print(f"❌ Request failed: {e}")
-        return False
+        return 'FAILURE'
     except json.JSONDecodeError:
-        print(f"❌ Failed to decode JSON from response. The raw response text is shown above.")
-        return False
+        print(f"❌ Failed to decode JSON. Raw Response: {response.text[:500]}")
+        return 'FAILURE'
 
 
 def run_downloader():
     """
-    Main function to loop through date ranges and download news data.
+    Main function to loop through dates and download news, with retries for rate limits.
     """
     api_keys = get_api_keys()
-    key_cycle = 0
+    key_cycle_index = 0
 
     current_start_date = load_state()
-    print(
-        f"Starting downloader. Ticker: {TICKER}, Date Range: {START_DATE.strftime('%Y-%m-%d')} to {END_DATE.strftime('%Y-%m-%d')}")
+    print(f"Starting downloader for Ticker: {TICKER}")
     print(f"Resuming from saved state: {current_start_date.strftime('%Y-%m-%d')}")
 
+    # --- REFACTORED LOGIC ---
+    # Outer loop iterates through each date period
     while current_start_date < END_DATE:
-        # Determine the end of the current chunk
-        period_end_date = current_start_date + relativedelta(months=TIME_CHUNK_MONTHS)
-        # Ensure we don't go past the overall END_DATE
-        period_end_date = min(period_end_date, END_DATE)
-
-        # Convert date objects to datetime objects for the API call
+        period_end_date = min(current_start_date + relativedelta(months=TIME_CHUNK_MONTHS), END_DATE)
         time_from = datetime.combine(current_start_date, datetime.min.time())
         time_to = datetime.combine(period_end_date, datetime.max.time())
 
-        # Rotate through the available API keys
-        api_key_index = key_cycle % len(api_keys)
-        api_key = api_keys[api_key_index]
-        print(f"--- Using API Key #{api_key_index + 1} ---")
-        key_cycle += 1
+        print(
+            f"\n--- Processing period: {current_start_date.strftime('%Y-%m-%d')} to {period_end_date.strftime('%Y-%m-%d')} ---")
 
-        success = fetch_news_for_period(api_key, time_from, time_to)
+        period_succeeded = False
+        # Inner loop retries with available API keys for the *same* period
+        for i in range(len(api_keys)):
+            current_key_index = key_cycle_index % len(api_keys)
+            api_key = api_keys[current_key_index]
+            print(f"Attempting with API Key #{current_key_index + 1}...")
 
-        if success:
-            # If successful, update state to start from the end of the period we just fetched
-            save_state(period_end_date)
-            current_start_date = period_end_date
+            status = fetch_news_for_period(api_key, time_from, time_to)
 
-            # Wait before the next call to be respectful of the API rate limits
-            wait_time = random.uniform(15, 25)  # A shorter delay as free tier is 25 requests/day
-            print(f"Waiting for {wait_time:.0f} seconds...")
-            time.sleep(wait_time)
-        else:
-            print("🛑 Failed to fetch data for the period. Stopping for this run.")
-            print("This could be due to API rate limits or an invalid response. Check the logs above.")
+            if status == 'SUCCESS':
+                save_state(period_end_date)
+                current_start_date = period_end_date
+                period_succeeded = True
+                key_cycle_index += 1  # Move to next key for the next period
+                break  # Exit inner loop and move to the next date period
+
+            elif status == 'RATE_LIMIT':
+                key_cycle_index += 1  # Move to the next key to retry
+                if i == len(api_keys) - 1:
+                    print("🛑 All API keys have been exhausted for this period. Stopping.")
+                    break
+                else:
+                    print("Switching to the next API key...")
+                    time.sleep(2)  # Brief pause before retrying with a new key
+
+            else:  # status == 'FAILURE'
+                print("🛑 A hard failure occurred. Stopping the downloader.")
+                # We break the inner loop, and since period_succeeded is False, the outer loop will also stop.
+                break
+
+        if not period_succeeded:
+            print("Could not complete the period with any API key. Exiting.")
             break
 
-    print("\nDownload process finished or reached the end date. ✅")
+        # Wait before starting the next period
+        wait_time = random.uniform(15, 25)
+        print(f"Period complete. Waiting for {wait_time:.0f} seconds...")
+        time.sleep(wait_time)
+
+    print("\nDownload process finished or stopped. ✅")
 
 
 if __name__ == "__main__":
