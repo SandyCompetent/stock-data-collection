@@ -104,15 +104,22 @@ def fetch_news_for_period(api_key, time_from, time_to):
         response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
         data = response.json()
 
-        # Alpha Vantage can return an error message within a successful (200 OK) response
-        if "Error Message" in data or "Information" in data:
-            print(f"API returned an error or info message: {data}")
+        # Case 1: API explicitly says no articles were found. Treat as a success and move on.
+        if "Information" in data and "No articles found" in data.get("Information", ""):
+            print("No articles found for this period. Moving to the next time chunk.")
+            return True
+
+        # Case 2: API returns a genuine error message. This is a failure.
+        if "Error Message" in data:
+            print(f"API returned an error: {data}")
             return False
 
         feed = data.get("feed", [])
         if not feed:
-            print("No articles found for this period.")
-            return True  # Treat as success to advance to the next period
+            # Case 3: The 'feed' is empty or missing, but there was no error/info message.
+            # This also means no articles were found.
+            print("No articles found for this period (empty feed). Moving on.")
+            return True
 
         # Create a unique filename for this data chunk
         ticker_str = TICKER.replace(':', '')  # Sanitize for filename
