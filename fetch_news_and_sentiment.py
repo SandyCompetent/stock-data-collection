@@ -14,7 +14,7 @@ TICKER = 'NVDA'
 # Optional: Specify topics to filter by. Leave empty to get all topics.
 # Full list of topics can be found in the Alpha Vantage documentation.
 # Example: ['technology', 'earnings']
-TOPICS = []
+# TOPICS = []
 # Folder to store the downloaded news data
 DATA_FOLDER = 'NVDA_news_data'
 # State file to keep track of download progress
@@ -96,8 +96,9 @@ def fetch_news_for_period(api_key, time_from, time_to):
         "limit": API_LIMIT,
         "apikey": api_key,
     }
-    if TOPICS:
-        params["topics"] = ",".join(TOPICS)
+
+    # if TOPICS:
+    #     params["topics"] = ",".join(TOPICS)
 
     try:
         response = requests.get(API_BASE_URL, params=params)
