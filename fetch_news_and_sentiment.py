@@ -49,6 +49,9 @@ def get_api_keys():
             break
     if not keys:
         raise ValueError("No API keys found in environment variables. Please set API_KEY_1, API_KEY_2, etc.")
+
+    # --- New Log ---
+    print(f"[DEBUG] Found {len(keys)} API key(s).")
     return keys
 
 
@@ -100,8 +103,17 @@ def fetch_news_for_period(api_key, time_from, time_to):
     # if TOPICS:
     #     params["topics"] = ",".join(TOPICS)
 
+    # --- New Log ---
+    print(f"[DEBUG] Request Parameters: {params}")
+
     try:
         response = requests.get(API_BASE_URL, params=params)
+
+        # --- New Logs ---
+        print(f"[DEBUG] Response Status Code: {response.status_code}")
+        # Log the first 500 characters of the raw response to see what we got
+        print(f"[DEBUG] Raw Response Text (first 500 chars): {response.text[:500]}")
+
         response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
         data = response.json()
 
@@ -128,6 +140,9 @@ def fetch_news_for_period(api_key, time_from, time_to):
         os.makedirs(DATA_FOLDER, exist_ok=True)
         filepath = os.path.join(DATA_FOLDER, filename)
 
+        # --- New Log ---
+        print(f"[DEBUG] Preparing to write {len(feed)} articles to {filepath}...")
+
         # Flatten and write the data to a CSV file
         with open(filepath, 'w', newline='', encoding='utf-8') as csvfile:
             # The headers will be the keys from the first article object
@@ -144,20 +159,20 @@ def fetch_news_for_period(api_key, time_from, time_to):
                 row['ticker_sentiment'] = json.dumps(row.get('ticker_sentiment', []))
                 writer.writerow(row)
 
-        print(f"Successfully saved {len(feed)} articles to {filepath}")
+        print(f"✅ Successfully saved {len(feed)} articles to {filepath}")
 
         # If we hit the limit, it's likely there's more data in this period.
         if len(feed) == API_LIMIT:
             print(
-                f"Warning: Reached the API limit of {API_LIMIT} articles. Some news within this period may have been missed.")
+                f"⚠️ Warning: Reached the API limit of {API_LIMIT} articles. Some news within this period may have been missed.")
 
         return True
 
     except requests.exceptions.RequestException as e:
-        print(f"Request failed: {e}")
+        print(f"❌ Request failed: {e}")
         return False
     except json.JSONDecodeError:
-        print(f"Failed to decode JSON from response. Response text: {response.text}")
+        print(f"❌ Failed to decode JSON from response. The raw response text is shown above.")
         return False
 
 
@@ -171,6 +186,7 @@ def run_downloader():
     current_start_date = load_state()
     print(
         f"Starting downloader. Ticker: {TICKER}, Date Range: {START_DATE.strftime('%Y-%m-%d')} to {END_DATE.strftime('%Y-%m-%d')}")
+    print(f"Resuming from saved state: {current_start_date.strftime('%Y-%m-%d')}")
 
     while current_start_date < END_DATE:
         # Determine the end of the current chunk
@@ -183,8 +199,9 @@ def run_downloader():
         time_to = datetime.combine(period_end_date, datetime.max.time())
 
         # Rotate through the available API keys
-        api_key = api_keys[key_cycle % len(api_keys)]
-        print(f"--- Using API Key #{(key_cycle % len(api_keys)) + 1} ---")
+        api_key_index = key_cycle % len(api_keys)
+        api_key = api_keys[api_key_index]
+        print(f"--- Using API Key #{api_key_index + 1} ---")
         key_cycle += 1
 
         success = fetch_news_for_period(api_key, time_from, time_to)
@@ -199,8 +216,8 @@ def run_downloader():
             print(f"Waiting for {wait_time:.0f} seconds...")
             time.sleep(wait_time)
         else:
-            print("Failed to fetch data for the period. Stopping for this run.")
-            print("This could be due to API rate limits. Try running the script again later.")
+            print("🛑 Failed to fetch data for the period. Stopping for this run.")
+            print("This could be due to API rate limits or an invalid response. Check the logs above.")
             break
 
     print("\nDownload process finished or reached the end date. ✅")
