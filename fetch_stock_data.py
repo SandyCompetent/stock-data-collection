@@ -7,14 +7,15 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 
 # --- Configuration ---
-SYMBOL = 'EBAY'
+SYMBOL = 'NIFTY_50'
 INTERVAL = '1min'
-DATA_FOLDER = 'EBAY_stock_data'
+DATA_FOLDER = 'NIFTY_50_stock_data'
 STATE_FILE = 'state.json'
 
 # Set your desired date range
-START_DATE = date(2009, 1, 1)
-END_DATE = date(2020, 12, 1)
+START_DATE = date(2010, 1, 1)
+# END_DATE = date(2023, 12, 1)
+END_DATE = date.today()
 
 
 # --- Helper Functions ---
