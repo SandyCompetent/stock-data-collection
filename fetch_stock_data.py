@@ -1,3 +1,8 @@
+"""
+NOTICE: This project was created for learning and demonstration purposes and is no longer maintained.
+It has been merged into: https://github.com/SandyCompetent/stock-market-analysis
+"""
+
 import os
 import requests
 import time
